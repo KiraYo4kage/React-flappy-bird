@@ -1,3 +1,8 @@
+@font-face {
+  font-family: Visitor;
+  src: url('./flappybird/visitor.ttf');
+}
+
 .App {
   text-align: center;
 }
@@ -56,4 +61,56 @@
   right: 0;
   top: 0;
   bottom: 0;
+}
+
+
+.score-panel {
+  font-family: Visitor;
+  font-weight: bold;
+  color: white;
+  position: absolute;
+  background: url(./flappybird/score_panel_2.png) 0 0/contain no-repeat;
+  width: 62px;
+  height: 150px;
+  left: 112px;
+  top: 58px;
+}
+
+.score {
+  font-size: 25px;
+  position: absolute;
+  top: 25px;
+  right: 15px;
+}
+
+.score-label {
+  position: absolute;
+  font-size: 25px;
+  font-family: Visitor;
+  color: white;
+  top: 72px;
+  left: 116px;
+}
+
+.best-score {
+  font-size: 25px;
+  position: absolute;
+  top: 55px;
+  right: 15px;
+}
+
+
+.restart-button-container {
+  margin-top: 100px;
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+
+.restart-button {
+  background: url(./flappybird/button_restart.png) 0 0/contain no-repeat;
+  width: 80px;
+  height: 28px;
 }

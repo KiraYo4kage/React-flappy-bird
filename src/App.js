@@ -42,6 +42,26 @@ class Bg {
     }
 }
 
+class Score {
+  constructor(config) {
+    config = config || {};
+    this.init(config);
+  }
+
+  init(config) {
+    let canvas = document.getElementById('canvas')
+    let ctx = canvas.getContext('2d');
+    let scoreString = String(config.score || 0);
+    let numDigits = scoreString.length
+    let startingPoint = 142 - ((15 * numDigits) / 2)
+    for (let i = 0; i < numDigits; i++) {
+      let digit = scoreString[i];
+      let digitImage = map[`number_score_0${digit}`]
+      ctx.drawImage(digitImage, startingPoint + 15 * i, 100)
+    }
+  }
+}
+
 class Bird {
     constructor(config) {
       config = config || {};
@@ -116,7 +136,10 @@ class App extends Component {
       value: 'yyj',
       frames: 60,//帧数
       ratio: 100/1,//地图比例
+      distanceFlown: 0,
       land: 0,//地面位置
+      score: 0,
+      bestScore: 0,
       pipespace: {//障碍物横纵间距
         x: 118,
         y: 120,
@@ -139,6 +162,7 @@ class App extends Component {
         left: 100
       },
       gameover: false,
+      introScreen: true,
     };
     this.handleChange = this.handleChange.bind(this);
     this.handleKeyUp = this.handleKeyUp.bind(this);
@@ -153,6 +177,9 @@ class App extends Component {
       land: this.state.land,
       pipespace: this.state.pipespace,
       pipe: this.state.pipe
+    });
+    this.scoreObj.init({
+      score: this.state.score,
     });
     this.birdObj.init({
       x:this.state.pos.left,
@@ -192,6 +219,15 @@ class App extends Component {
       });
     },100);
   }
+  getRandomVerticalDistance() {
+    return Math.random() * -260 - 40
+  }
+  computeScore(distanceFlown, pipeSpace, pipeWidth) {
+    const pointLength = pipeSpace + pipeWidth;
+    const startingDistance = 240
+    const score = Math.floor((distanceFlown - startingDistance) / pointLength);
+    return score > 0 ? score : 0;
+  }
   setRunInterval() {
     let time = 1 / this.state.frames;
     return setRafInterval(() => {
@@ -201,10 +237,13 @@ class App extends Component {
         pipe.shift();
         pipe.push({
           x: pipe[1].x + this.state.pipespace.x + 52,
-          y: Math.random() * -260 - 40
+          y: this.getRandomVerticalDistance()
         })
       }
-      console.log(this.state.land);
+
+      const distanceFlown = this.state.distanceFlown + 2
+      const score = this.computeScore(distanceFlown, this.state.pipespace.x, 52);
+
       this.setState({
         land: (this.state.land - 2) >> 0 <= -288 ? 0 : this.state.land - 2,
         pipe: pipe.map((v) => ({x:v.x - 2, y: v.y})),
@@ -212,15 +251,32 @@ class App extends Component {
         pos: {
           top: this.state.pos.top + v * this.state.ratio * time,
           left: this.state.pos.left
-        }
+        },
+        distanceFlown,
+        score,
       });
-      if(this.state.pos.left + 38 >= this.state.pipe[0].x && this.checkGameover.call(this)){
+      var groundCollision = this.checkGroundCollision.call(this);
+      if(this.state.pos.left + 38 >= this.state.pipe[0].x && this.checkPipeCollision.call(this) || groundCollision){
         clearRafInterval(this.timer1);
         clearRafInterval(this.timer2);
       }
     },time * 1000);
   }
-  checkGameover() {
+  finishGame() {
+    this.setState({
+      gameover: true,
+      bestScore: Math.max(this.state.score, this.state.bestScore),
+    })
+  }
+  checkGroundCollision() {
+    let gameover = false
+    if (this.state.pos.top + 38 >= 400) {
+      gameover = true;
+    }
+    gameover && this.finishGame();
+    return gameover;
+  }
+  checkPipeCollision() {
     let gameover = false,
         {left:birdLeft,top:birdTop} = this.state.pos,
         birdPos = {
@@ -248,9 +304,7 @@ class App extends Component {
         break;
       }
     }
-    gameover && this.setState({
-      gameover: true,
-    })
+    gameover && this.finishGame();
     return gameover;
   }
   handleChange(event, key = 'value') {
@@ -279,7 +333,13 @@ class App extends Component {
   start = () => {
     if(this.state.velocity) return;
     this.birdObj = new Bird({ x: this.state.pos.left, y: this.state.pos.top, img: this.state.img });//将唯一bird实例birdObj赋予上下文
+    this.scoreObj = new Score({
+      score: this.state.score,
+    });
     this.initEngine();
+    this.setState({
+      introScreen: false,
+    });
   }
   restart = () => {
     this.setState({
@@ -289,16 +349,18 @@ class App extends Component {
       },
       pipe: [{//障碍物位置
         x: 500,
-        y: Math.random() * -260 - 40
+        y: this.getRandomVerticalDistance()
       }, {
         x: 500 + 118 + 52,
-        y: Math.random() * -260 - 40
+        y: this.getRandomVerticalDistance()
       }, {
         x: 500 + 118 * 2 + 52 * 2,
-        y: Math.random() * -260 - 40
+        y: this.getRandomVerticalDistance()
       }],
       velocity: 0,//速度
       gameover: false,
+      score: 0,
+      distanceFlown: 0,
     });
     this.initEngine();
   }
@@ -315,9 +377,26 @@ class App extends Component {
         </form>
         <div className="game-container">
           {
-            gameover ? <div className="gameover-modal"></div> : null
+            gameover ? (
+              <div>
+                <div className="score-panel">
+                  <div className="score">
+                    {this.state.score}
+                  </div>
+                  <div className="best-score">
+                    {this.state.bestScore}
+                  </div>
+                </div>
+                <div className="gameover-modal">
+                  <div className="restart-button-container">
+                    <div className="restart-button" onClick={this.restart}></div>
+                  </div>
+                </div>
+              </div>
+            ) : null
           }
           <canvas id="canvas" className="game-content" width="288" height="512" onClick={this.start}></canvas>
+          { !this.state.introScreen && !gameover && <div className="score-label">Score</div> }
         </div>
       </div>
     );
